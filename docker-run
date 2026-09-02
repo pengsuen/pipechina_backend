@@ -1,0 +1,84 @@
+# 本文件是开发机共享基础设施的首次创建记录，不是 PipeChina 的日常启动脚本。
+# PostgreSQL、RabbitMQ、Redis 和 SeaweedFS 容器可以被多个本地项目共用。
+# 容器已创建后请使用 `docker start postgres rabbitmq redis seaweedfs`，不要重复执行本文件。
+# 每个项目应在共享 PostgreSQL 实例中使用独立数据库；下面的 pipechina 仅属于本项目。
+
+docker network create pipechina
+
+docker volume create pg_data
+docker volume create rabbitmq_data
+docker volume create redis_data
+docker volume create object_data
+docker volume create beat_data
+docker volume create asr_models
+docker volume create vision_models
+docker volume create seaweed_data
+
+
+docker run -d \
+  --name postgres \
+  -e POSTGRES_USER=peter \
+  -e POSTGRES_PASSWORD=123456 \
+  -e POSTGRES_INITDB_ARGS="--data-checksums" \
+  -p 5432:5432 \
+  -v pg_data:/var/lib/postgresql \
+  --health-cmd="pg_isready -U peter" \
+  --health-interval=5s \
+  --health-timeout=3s \
+  --health-retries=20 \
+  --restart unless-stopped \
+  postgres:18.6-alpine3.24
+
+
+docker exec -it postgres \
+  psql -U peter -d postgres \
+  -c "CREATE DATABASE pipechina;"
+
+
+docker run -d \
+  --name rabbitmq \
+  -e RABBITMQ_DEFAULT_USER=peter \
+  -e RABBITMQ_DEFAULT_PASS=123456 \
+  -p 5672:5672 \
+  -p 15672:15672 \
+  -v rabbitmq_data:/var/lib/rabbitmq \
+  --health-cmd="rabbitmq-diagnostics -q ping" \
+  --health-interval=5s \
+  --health-timeout=5s \
+  --health-retries=20 \
+  --restart unless-stopped \
+  rabbitmq:4.3.5-management-alpine
+
+
+docker run -d \
+  --name redis \
+  -p 127.0.0.1:6379:6379 \
+  -v redis_data:/data \
+  --health-cmd="redis-cli ping" \
+  --health-interval=5s \
+  --health-timeout=3s \
+  --health-retries=20 \
+  --restart unless-stopped \
+  redis:8.10.1-alpine3.23 \
+  redis-server --appendonly yes
+
+
+docker run -d \
+  --name seaweedfs \
+  -e AWS_ACCESS_KEY_ID=peter \
+  -e AWS_SECRET_ACCESS_KEY=123456 \
+  -p 8333:8333 \
+  -v seaweed_data:/data \
+  --health-cmd="wget -q --spider http://127.0.0.1:8333/readyz" \
+  --health-interval=5s \
+  --health-timeout=3s \
+  --health-retries=30 \
+  --restart unless-stopped \
+  chrislusf/seaweedfs:4.44 \
+  server -dir=/data -s3
+
+
+docker network connect pipechina postgres
+docker network connect pipechina rabbitmq
+docker network connect pipechina redis
+docker network connect pipechina seaweedfs

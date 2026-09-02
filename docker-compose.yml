@@ -1,0 +1,359 @@
+name: pipechina
+
+services:
+  postgres:
+    image: postgres:18.6-alpine3.24
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pipechina}
+      POSTGRES_USER: ${POSTGRES_USER:-peter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    volumes:
+      - pg_data:/var/lib/postgresql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER:-peter} -d ${POSTGRES_DB:-pipechina}
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - pipechina
+
+  rabbitmq:
+    image: rabbitmq:4.3.5-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-peter}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-123456}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test:
+        - CMD
+        - rabbitmq-diagnostics
+        - -q
+        - ping
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - pipechina
+
+  redis:
+    image: redis:8.10.1-alpine3.23
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - pipechina
+
+  mock-idp:
+    build:
+      context: .
+      dockerfile: dev/mock_idp/Dockerfile
+    environment:
+      MOCK_IDP_ISSUER: http://mock-idp:9001
+      MOCK_IDP_AUDIENCE: pipechina-backend
+    ports:
+      - "127.0.0.1:9001:9001"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen(
+          'http://localhost:9001/health/live',
+          timeout=2
+          )
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - pipechina
+    restart: unless-stopped
+
+  migrate:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-peter}:${POSTGRES_PASSWORD:-123456}@postgres:5432/${POSTGRES_DB:-pipechina}
+      JWT_ISSUER: http://mock-idp:9001
+      JWT_AUDIENCE: pipechina-backend
+      JWT_ALGORITHM: RS256
+      JWT_JWKS_URL: http://mock-idp:9001/.well-known/jwks.json
+    command: alembic upgrade head
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - pipechina
+
+  mock-users:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-peter}:${POSTGRES_PASSWORD:-123456}@postgres:5432/${POSTGRES_DB:-pipechina}
+      JWT_ISSUER: http://mock-idp:9001
+      JWT_AUDIENCE: pipechina-backend
+      JWT_ALGORITHM: RS256
+      JWT_JWKS_URL: http://mock-idp:9001/.well-known/jwks.json
+    command: python scripts/bootstrap_mock_idp_users.py
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - pipechina
+    restart: "no"
+
+  beat-permissions:
+    image: alpine:3.22
+    user: "0:0"
+    command: >
+      sh -c "
+      chown -R 10001:10001 /var/lib/pipechina
+      "
+    volumes:
+      - beat_data:/var/lib/pipechina
+    restart: "no"
+
+  api:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-peter}:${POSTGRES_PASSWORD:-123456}@postgres:5432/${POSTGRES_DB:-pipechina}
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-peter}:${RABBITMQ_DEFAULT_PASS:-123456}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      REDIS_URL: redis://redis:6379/0
+      JWT_ISSUER: http://mock-idp:9001
+      JWT_AUDIENCE: pipechina-backend
+      JWT_ALGORITHM: RS256
+      JWT_JWKS_URL: http://mock-idp:9001/.well-known/jwks.json
+      LOCAL_STORAGE_ROOT: /var/lib/pipechina/objects
+      ASR_BASE_URL: http://asr:8101
+      VISION_BASE_URL: http://vision:8102
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      mock-idp:
+        condition: service_healthy
+      mock-users:
+        condition: service_completed_successfully
+    ports:
+      - "8000:8000"
+    volumes:
+      - object_data:/var/lib/pipechina/objects
+    networks:
+      - pipechina
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen(
+          'http://localhost:8000/health/live',
+          timeout=2
+          )
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  worker:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-peter}:${POSTGRES_PASSWORD:-123456}@postgres:5432/${POSTGRES_DB:-pipechina}
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-peter}:${RABBITMQ_DEFAULT_PASS:-123456}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      REDIS_URL: redis://redis:6379/0
+      JWT_ISSUER: http://mock-idp:9001
+      JWT_AUDIENCE: pipechina-backend
+      JWT_ALGORITHM: RS256
+      JWT_JWKS_URL: http://mock-idp:9001/.well-known/jwks.json
+      LOCAL_STORAGE_ROOT: /var/lib/pipechina/objects
+      ASR_BASE_URL: http://asr:8101
+      VISION_BASE_URL: http://vision:8102
+    command: >-
+      celery
+      -A app.bootstrap.celery_app:celery_app
+      worker
+      -l INFO
+      -Q audio,ai_text,vision,report,maintenance
+      --without-mingle
+      --without-gossip
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - object_data:/var/lib/pipechina/objects
+    networks:
+      - pipechina
+    restart: unless-stopped
+
+  beat:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-peter}:${POSTGRES_PASSWORD:-123456}@postgres:5432/${POSTGRES_DB:-pipechina}
+      CELERY_BROKER_URL: amqp://${RABBITMQ_DEFAULT_USER:-peter}:${RABBITMQ_DEFAULT_PASS:-123456}@rabbitmq:5672//
+      CELERY_RESULT_BACKEND: redis://redis:6379/1
+      REDIS_URL: redis://redis:6379/0
+      JWT_ISSUER: http://mock-idp:9001
+      JWT_AUDIENCE: pipechina-backend
+      JWT_ALGORITHM: RS256
+      JWT_JWKS_URL: http://mock-idp:9001/.well-known/jwks.json
+      LOCAL_STORAGE_ROOT: /var/lib/pipechina/objects
+    command: >-
+      celery
+      -A app.bootstrap.celery_app:celery_app
+      beat
+      -l INFO
+      --schedule=/var/lib/pipechina/celerybeat-schedule
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      beat-permissions:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - beat_data:/var/lib/pipechina
+      - object_data:/var/lib/pipechina/objects
+    networks:
+      - pipechina
+    restart: unless-stopped
+
+  asr:
+    profiles:
+      - local-models
+    build:
+      context: ./inference/asr_service
+    environment:
+      ASR_MODEL: ${ASR_MODEL:-large-v3}
+      ASR_DEVICE: ${ASR_DEVICE:-cpu}
+      ASR_COMPUTE_TYPE: ${ASR_COMPUTE_TYPE:-int8}
+      ASR_MODEL_CACHE: /models
+    ports:
+      - "127.0.0.1:8101:8101"
+    volumes:
+      - asr_models:/models
+    networks:
+      - pipechina
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen(
+          'http://localhost:8101/health/live',
+          timeout=2
+          )
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  vision:
+    profiles:
+      - local-models
+    build:
+      context: ./inference/vision_service
+    environment:
+      VISION_MODEL: ${VISION_MODEL:-openbmb/MiniCPM-V-4.6}
+      HF_HOME: /models
+    ports:
+      - "127.0.0.1:8102:8102"
+    volumes:
+      - vision_models:/models
+    networks:
+      - pipechina
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen(
+          'http://localhost:8102/health/live',
+          timeout=2
+          )
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  seaweedfs:
+    profiles:
+      - s3-local
+    image: chrislusf/seaweedfs:4.44
+    command: server -dir=/data -s3 -s3.port=8333
+    ports:
+      - "127.0.0.1:8333:8333"
+      - "127.0.0.1:9333:9333"
+    volumes:
+      - seaweedfs_data:/data
+    networks:
+      - pipechina
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - --spider
+        - -q
+        - http://localhost:9333/readyz
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  object-storage-init:
+    profiles:
+      - s3-local
+    build: .
+    env_file:
+      - .env
+    command: python -m app.bootstrap.ensure_bucket
+    depends_on:
+      seaweedfs:
+        condition: service_healthy
+    networks:
+      - pipechina
+
+networks:
+  pipechina:
+    driver: bridge
+
+volumes:
+  pg_data:
+  rabbitmq_data:
+  redis_data:
+  object_data:
+  beat_data:
+  asr_models:
+  vision_models:
+  seaweedfs_data:

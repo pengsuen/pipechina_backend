@@ -1,0 +1,83 @@
+[build-system]
+requires = ["hatchling==1.32.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pipechina-backend"
+version = "1.3.0"
+description = "国家油气管网智能生产运营辅助系统 V1.3 可替换模型后端（Python 3.14）"
+readme = "README.md"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+  "fastapi==0.141.1",
+  "uvicorn[standard]==0.52.4",
+  "pydantic==2.13.4",
+  "pydantic-settings==2.15.0",
+  "sqlalchemy[asyncio]==2.0.52",
+  "asyncpg==0.31.0",
+  "psycopg[binary]==3.3.4",
+  "alembic==1.19.1",
+  "httpx==0.28.1",
+  "PyJWT==2.13.0",
+  "cryptography==50.0.0",
+  "python-multipart==0.0.32",
+  "celery==5.6.3",
+  "redis==8.1.0",
+  "boto3==1.43.79",
+  "langgraph==1.2.11",
+  "python-docx==1.2.0",
+  "tzdata==2026.3",
+  "celery-types>=0.26.0",
+  "boto3-stubs~=1.43.79",
+]
+
+[dependency-groups]
+dev = [
+  "aiosqlite==0.22.1",
+  "coverage==7.15.4",
+  "httpx2==2.12.0",
+  "pip-audit==2.10.1",
+  "pytest==9.1.1",
+  "pytest-asyncio==1.4.0",
+  "PyYAML==6.0.3",
+  "ruff==0.16.4",
+  "mypy==2.3.1",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q --disable-warnings --maxfail=1"
+
+[tool.ruff]
+target-version = "py314"
+line-length = 100
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+ignore = ["B008"]
+
+[tool.mypy]
+python_version = "3.14"
+plugins = ["pydantic.mypy"]
+warn_unused_ignores = true
+check_untyped_defs = true
+no_implicit_optional = true
+exclude = ["alembic"]
+
+[[tool.mypy.overrides]]
+module = ["boto3", "botocore", "botocore.*", "celery", "celery.*"]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+fail_under = 65
+show_missing = true
+skip_covered = true

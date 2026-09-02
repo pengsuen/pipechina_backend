@@ -1,0 +1,10 @@
+accelerate==1.12.0
+fastapi==0.141.1
+Pillow==12.1.1
+python-multipart==0.0.32
+safetensors==0.6.2
+sentencepiece==0.2.1
+torch==2.11.0
+torchvision==0.26.0
+transformers==5.7.0
+uvicorn[standard]==0.52.4

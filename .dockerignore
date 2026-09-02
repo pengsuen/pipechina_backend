@@ -1,0 +1,15 @@
+.env
+.venv
+.mypy_cache*
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+.coverage
+data
+dist
+build
+htmlcov
+tests
+docs
+inference
