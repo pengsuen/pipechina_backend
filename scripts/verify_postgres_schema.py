@@ -17,7 +17,7 @@ import app.bootstrap.model_registry  # noqa: F401
 from app.bootstrap.config import get_settings
 from app.shared.db import Base
 
-EXPECTED_REVISION = "20260902_0002"
+EXPECTED_REVISION = "20260902_0003"
 
 
 async def verify_schema() -> None:

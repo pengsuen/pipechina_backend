@@ -891,7 +891,7 @@ Mock IdP 的明文开发密码、测试场景和无保护的轮换接口决定�
 生产环境必须使用 Keycloak、企业统一身份平台或其他正式 IdP。
 
 
-## 2.7.14 使用长期运行的基础设施容器启动权限系统
+## 2.7.13 使用长期运行的基础设施容器启动权限系统
 
 本项目推荐的本地开发方式是：
 
@@ -907,7 +907,7 @@ docker start postgres rabbitmq redis seaweedfs
 
 这套方案中，名为 `postgres` 的容器就是本项目使用的 PostgreSQL，它将端口映射到宿主机 `5432`。不要再执行 `docker compose up -d postgres` 创建第二个 PostgreSQL 容器，否则会因为宿主机 `5432` 已被占用而启动失败。
 
-### 2.7.14.1 检查共享 PostgreSQL
+### 2.7.13.1 检查共享 PostgreSQL
 
 ```bash
 docker exec postgres pg_isready -U peter -d pipechina
@@ -919,7 +919,7 @@ docker exec postgres pg_isready -U peter -d pipechina
 accepting connections
 ```
 
-### 2.7.14.2 检查 `.env`
+### 2.7.13.2 检查 `.env`
 
 本机从 PyCharm 或终端直接运行 API 时，相关配置应是：
 
@@ -945,7 +945,7 @@ JWT_JWKS_URL=http://127.0.0.1:9001/.well-known/jwks.json
 - `JWT_ISSUER` 是必须匹配的逻辑签发方字符串。
 - `JWT_JWKS_URL` 是主后端实际下载公钥的网络地址。
 
-### 2.7.14.3 执行数据库迁移
+### 2.7.13.3 执行数据库迁移
 
 ```bash
 uv run alembic upgrade head
@@ -960,10 +960,10 @@ uv run alembic current
 预期包含：
 
 ```text
-20260902_0002 (head)
+20260902_0003 (head)
 ```
 
-### 2.7.14.4 启动 Mock IdP
+### 2.7.13.4 启动 Mock IdP
 
 方式一：直接运行独立进程。
 
@@ -992,9 +992,9 @@ curl -i http://127.0.0.1:9001/health/live
 HTTP/1.1 200 OK
 ```
 
-### 2.7.14.5 初始化开发用户和内置角色
+### 2.7.13.5 初始化开发用户和内置角色
 
-确认前一步 Alembic 迁移已到 `20260902_0002 (head)` 后，在 PyCharm 终端或项目根目录执行：
+确认前一步 Alembic 迁移已到 `20260902_0003 (head)` 后，在 PyCharm 终端或项目根目录执行：
 
 ```bash
 uv run python scripts/bootstrap_mock_idp_users.py
@@ -1027,7 +1027,7 @@ Provisioned tom: user_id=... active=False
 - 给 `peter` 授予 `dispatcher + own_org`。
 - 保证 `tom.active = false`。
 
-### 2.7.14.6 启动主 API
+### 2.7.13.6 启动主 API
 
 另开一个终端：
 
@@ -1052,9 +1052,9 @@ HTTP/1.1 200 OK
 
 ---
 
-## 2.7.15 获取外部 JWT
+## 2.7.14 获取外部 JWT
 
-### 2.7.15.1 获取 admin Token
+### 2.7.14.1 获取 admin Token
 
 ```bash
 curl -sS -X POST http://127.0.0.1:9001/token \
@@ -1079,7 +1079,7 @@ curl -sS -X POST http://127.0.0.1:9001/token \
 export ADMIN_TOKEN='粘贴 admin 的 access_token'
 ```
 
-### 2.7.15.2 获取 peter Token
+### 2.7.14.2 获取 peter Token
 
 ```bash
 curl -sS -X POST http://127.0.0.1:9001/token \
@@ -1092,7 +1092,7 @@ curl -sS -X POST http://127.0.0.1:9001/token \
 export PETER_TOKEN='粘贴 peter 的 access_token'
 ```
 
-### 2.7.15.3 获取 tom Token
+### 2.7.14.3 获取 tom Token
 
 ```bash
 curl -sS -X POST http://127.0.0.1:9001/token \
@@ -1109,9 +1109,9 @@ export TOM_TOKEN='粘贴 tom 的 access_token'
 
 ---
 
-## 2.7.16 验证三个开发用户
+## 2.7.15 验证三个开发用户
 
-### 2.7.16.1 验证 admin
+### 2.7.15.1 验证 admin
 
 ```bash
 curl -sS \
@@ -1145,7 +1145,7 @@ curl -i \
 HTTP/1.1 200 OK
 ```
 
-### 2.7.16.2 验证 peter
+### 2.7.15.2 验证 peter
 
 ```bash
 curl -sS \
@@ -1186,7 +1186,7 @@ HTTP/1.1 403 Forbidden
 }
 ```
 
-### 2.7.16.3 验证 tom
+### 2.7.15.3 验证 tom
 
 ```bash
 curl -i \
@@ -1209,9 +1209,9 @@ HTTP/1.1 403 Forbidden
 
 ---
 
-## 2.7.17 验证认证失败场景
+## 2.7.16 验证认证失败场景
 
-### 2.7.17.1 没有 Token
+### 2.7.16.1 没有 Token
 
 ```bash
 curl -i http://127.0.0.1:8000/api/v1/auth/me
@@ -1223,7 +1223,7 @@ curl -i http://127.0.0.1:8000/api/v1/auth/me
 401 AUTHENTICATION_REQUIRED
 ```
 
-### 2.7.17.2 错误密码
+### 2.7.16.2 错误密码
 
 ```bash
 curl -i -X POST http://127.0.0.1:9001/token \
@@ -1237,7 +1237,7 @@ curl -i -X POST http://127.0.0.1:9001/token \
 HTTP/1.1 401 Unauthorized
 ```
 
-### 2.7.17.3 篡改 Token
+### 2.7.16.3 篡改 Token
 
 ```bash
 export TAMPERED_TOKEN="${ADMIN_TOKEN%?}x"
@@ -1253,7 +1253,7 @@ curl -i \
 401 INVALID_TOKEN
 ```
 
-### 2.7.17.4 过期 Token
+### 2.7.16.4 过期 Token
 
 Mock IdP 支持专门的异常场景：
 
@@ -1280,7 +1280,7 @@ curl -sS -X POST http://127.0.0.1:9001/token \
 | `unknown_kid` | JWKS 中找不到签名密钥 |
 | `forged_permissions` | JWT 伪造管理员角色和 `*` 权限 |
 
-### 2.7.17.5 验证 JWT 权限声明无效
+### 2.7.16.5 验证 JWT 权限声明无效
 
 获取伪造权限的 peter Token：
 
@@ -1303,11 +1303,11 @@ roles 不包含 system_administrator
 
 ---
 
-## 2.7.18 实际创建角色、授权和撤销
+## 2.7.17 实际创建角色、授权和撤销
 
 下面使用 `admin` 给 `peter` 临时增加 `report:export` 权限。
 
-### 2.7.18.1 查看用户和角色
+### 2.7.17.1 查看用户和角色
 
 ```bash
 curl -sS \
@@ -1331,7 +1331,7 @@ curl -sS \
   | uv run python -m json.tool
 ```
 
-### 2.7.18.2 创建演示角色
+### 2.7.17.2 创建演示角色
 
 ```bash
 curl -sS -X POST \
@@ -1355,7 +1355,7 @@ export DEMO_ROLE_ID='粘贴角色 id'
 
 如果重复执行并返回 `409 STATE_CONFLICT`，说明该角色编码已经存在。可以从角色列表复制已有 ID，或换一个新的演示编码。
 
-### 2.7.18.3 给 peter 授权
+### 2.7.17.3 给 peter 授权
 
 ```bash
 curl -sS -X POST \
@@ -1380,7 +1380,7 @@ curl -sS -X POST \
 export ASSIGNMENT_ID='粘贴授权 id'
 ```
 
-### 2.7.18.4 查看 peter 的有效权限
+### 2.7.17.4 查看 peter 的有效权限
 
 ```bash
 curl -sS \
@@ -1399,7 +1399,7 @@ curl -sS \
 
 不需要重新签发 Token，因为权限不保存在 Token 中。
 
-### 2.7.18.5 撤销授权
+### 2.7.17.5 撤销授权
 
 ```bash
 curl -i -X DELETE \
@@ -1419,7 +1419,7 @@ HTTP/1.1 204 No Content
 
 同一个旧 `PETER_TOKEN` 立即生效，无需等待 Token 过期。
 
-### 2.7.18.6 停用演示角色
+### 2.7.17.6 停用演示角色
 
 ```bash
 curl -sS -X PATCH \
@@ -1434,7 +1434,7 @@ curl -sS -X PATCH \
 
 ---
 
-## 2.7.19 查看审计日志
+## 2.7.18 查看审计日志
 
 ```bash
 curl -sS \
@@ -1462,7 +1462,7 @@ role.update
 
 ---
 
-## 2.7.20 直接检查 PostgreSQL
+## 2.7.19 直接检查 PostgreSQL
 
 如果本机安装了 `psql`：
 
@@ -1470,7 +1470,7 @@ role.update
 psql 'postgresql://peter:123456@127.0.0.1:5432/pipechina'
 ```
 
-### 2.7.20.1 查看三个用户
+### 2.7.19.1 查看三个用户
 
 ```sql
 SELECT
@@ -1491,7 +1491,7 @@ peter  ... mock-peter  true
 tom    ... mock-tom    false
 ```
 
-### 2.7.20.2 查看角色授权
+### 2.7.19.2 查看角色授权
 
 ```sql
 SELECT
@@ -1507,7 +1507,7 @@ JOIN role_definitions r ON r.id = ra.role_id
 ORDER BY u.username, r.code, ra.created_at;
 ```
 
-### 2.7.20.3 查看角色权限
+### 2.7.19.3 查看角色权限
 
 ```sql
 SELECT
@@ -1519,7 +1519,7 @@ JOIN permission_definitions p ON p.id = rp.permission_id
 ORDER BY r.code, p.code;
 ```
 
-### 2.7.20.4 查看最近审计
+### 2.7.19.4 查看最近审计
 
 ```sql
 SELECT
@@ -1538,9 +1538,9 @@ LIMIT 20;
 
 ---
 
-## 2.7.21 自动化测试
+## 2.7.20 自动化测试
 
-### 2.7.21.1 认证测试
+### 2.7.20.1 认证测试
 
 ```bash
 uv run pytest -W error tests/test_auth_and_health.py
@@ -1557,7 +1557,7 @@ uv run pytest -W error tests/test_auth_and_health.py
 - JWT 伪造权限无效。
 - 数据库停用用户拒绝。
 
-### 2.7.21.2 授权测试
+### 2.7.20.2 授权测试
 
 ```bash
 uv run pytest -W error tests/test_authorization.py
@@ -1576,7 +1576,7 @@ uv run pytest -W error tests/test_authorization.py
 - 停用用户被拒绝。
 - 所有业务路由都声明了动作权限。
 
-### 2.7.21.3 全项目检查
+### 2.7.20.3 全项目检查
 
 ```bash
 uv run ruff format --check .
@@ -1587,7 +1587,7 @@ uv run pytest -W error
 
 ---
 
-## 2.7.22 接入真实外部 IdP
+## 2.7.21 接入真实外部 IdP
 
 将来接入 Keycloak 或企业身份平台时，主后端架构不需要重新设计。
 
@@ -1627,9 +1627,9 @@ uv run python scripts/bootstrap_security.py \
 
 ---
 
-## 2.7.23 常见错误排查
+## 2.7.22 常见错误排查
 
-### 2.7.23.1 `AUTHENTICATION_REQUIRED`
+### 2.7.22.1 `AUTHENTICATION_REQUIRED`
 
 原因：
 
@@ -1642,7 +1642,7 @@ uv run python scripts/bootstrap_security.py \
 test -n "$ADMIN_TOKEN" && echo 'Token is set'
 ```
 
-### 2.7.23.2 `INVALID_TOKEN`
+### 2.7.22.2 `INVALID_TOKEN`
 
 可能原因：
 
@@ -1660,7 +1660,7 @@ test -n "$ADMIN_TOKEN" && echo 'Token is set'
 3. 重新获取 Token。
 4. 检查 `.env` 中 issuer 和 audience。
 
-### 2.7.23.3 `ACCOUNT_NOT_PROVISIONED`
+### 2.7.22.3 `ACCOUNT_NOT_PROVISIONED`
 
 Token 合法，但数据库找不到相同的：
 
@@ -1684,19 +1684,19 @@ uv run python scripts/bootstrap_mock_idp_users.py
 - Token 的 `sub`。
 - `user_accounts.external_subject`。
 
-### 2.7.23.4 `ACCOUNT_DISABLED`
+### 2.7.22.4 `ACCOUNT_DISABLED`
 
 外部身份正确，但 `user_accounts.active = false`。
 
 `tom` 出现该错误是本章设计的正常验证结果。
 
-### 2.7.23.5 `ORGANIZATION_DISABLED`
+### 2.7.22.5 `ORGANIZATION_DISABLED`
 
 用户所属组织不存在或 `organization_units.active = false`。
 
 需要恢复组织，或把用户移动到启用的组织。
 
-### 2.7.23.6 `PERMISSION_DENIED`
+### 2.7.22.6 `PERMISSION_DENIED`
 
 重点检查：
 
@@ -1707,7 +1707,7 @@ uv run python scripts/bootstrap_mock_idp_users.py
 - 数据范围是否覆盖目标数据。
 - 全局权限是否真的使用 `global` 范围。
 
-### 2.7.23.7 数据范围返回 422
+### 2.7.22.7 数据范围返回 422
 
 检查范围文档形状：
 
@@ -1715,7 +1715,7 @@ uv run python scripts/bootstrap_mock_idp_users.py
 - `own_org`、`global`、`owned`、`assigned` 不能提供组织 ID。
 - `effective_from` 必须早于 `expires_at`。
 
-### 2.7.23.8 本机数据库连接失败
+### 2.7.22.8 本机数据库连接失败
 
 本机直接运行 API 时必须使用：
 
@@ -1733,7 +1733,7 @@ Docker 服务之间才使用 `postgres`。
 
 ---
 
-## 2.7.24 安全边界总结
+## 2.7.23 安全边界总结
 
 当前权限系统遵循下面的边界：
 
@@ -1758,7 +1758,7 @@ JWT 公钥验证              -> 主后端 AuthN
 
 ---
 
-## 2.7.25 本章验收清单
+## 2.7.24 本章验收清单
 
 - [ ] 能解释 AuthN 与 AuthZ 的区别。
 - [ ] 能解释 JWT、OIDC、JWKS 和 RS256 的关系。

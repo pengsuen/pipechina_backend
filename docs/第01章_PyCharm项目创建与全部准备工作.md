@@ -4,7 +4,7 @@
 
 本章从一个空目录开始建立可运行、可测试、可提交的 Python 后端工程。完成后应具备以下结果：
 
-- PyCharm 项目目录为 `pipeline_operations_ai_backend`；
+- PyCharm 项目目录为 `pipechina_backend`；
 - 项目解释器由 `uv` 管理，Python 版本固定为 3.14；
 - Git 仓库在创建项目时初始化；
 - 项目采用 `app` 作为 Python 源码根包；
@@ -55,7 +55,7 @@ uv python list
 
 | PyCharm 字段 | 设置值 |
 |---|---|
-| Location | `/home/peter/PycharmProjects/pipeline_operations_ai_backend` |
+| Location | `/Users/peter/PycharmProjects/pipechina_backend` |
 | Create Git repository | 勾选 |
 | Create a welcome script | 不勾选 |
 | Interpreter type | `uv` |
@@ -63,7 +63,7 @@ uv python list
 | Path to uv | PyCharm 自动识别的 uv 路径，例如 `/home/peter/.local/bin/uv` |
 | Environment location | 项目根目录下的 `.venv` |
 
-如果操作系统用户名不是 `peter`，只替换路径中的用户名部分。项目目录名保持 `pipeline_operations_ai_backend`。
+上表使用当前 macOS 开发机路径。其他用户或操作系统只需调整父目录，项目目录名保持 `pipechina_backend`。
 
 点击 **Create**。创建完成后，在 PyCharm 底部 Terminal 中执行：
 
@@ -76,7 +76,7 @@ git status
 
 预期结果：
 
-- 当前目录以 `pipeline_operations_ai_backend` 结尾；
+- 当前目录以 `pipechina_backend` 结尾；
 - Python 版本为 `3.14.x`；
 - Git 输出当前仓库状态，而不是“not a git repository”；
 - 项目根目录存在 `.venv`。
@@ -125,12 +125,15 @@ dependencies = [
   "langgraph==1.2.11",
   "python-docx==1.2.0",
   "tzdata==2026.3",
+  "celery-types>=0.26.0",
+  "boto3-stubs~=1.43.79",
 ]
 
 [dependency-groups]
 dev = [
   "aiosqlite==0.22.1",
   "coverage==7.15.4",
+  "httpx2==2.12.0",
   "pip-audit==2.10.1",
   "pytest==9.1.1",
   "pytest-asyncio==1.4.0",
@@ -196,7 +199,7 @@ uv sync --frozen --group dev
 在 PyCharm Project 面板中逐级创建目录和空的 `__init__.py`。最终结构如下：
 
 ```text
-pipeline_operations_ai_backend/
+pipechina_backend/
 ├── app/
 │   ├── bootstrap/
 │   ├── ports/
@@ -210,9 +213,13 @@ pipeline_operations_ai_backend/
 │   │   ├── inspection/
 │   │   └── report/
 │   └── shared/
-│       ├── auth/
 │       ├── media/
-│       └── platform/
+│       ├── platform/
+│       └── security/
+│           ├── audit/
+│           ├── authentication/
+│           ├── authorization/
+│           └── identity/
 ├── alembic/
 │   └── versions/
 ├── inference/
@@ -255,6 +262,8 @@ __version__ = "1.3.0"
 ```
 
 创建 `app/main.py`：
+
+下面是第1章阶段使用的最小版本。第2章完成后，当前项目中的 `app/main.py` 会进一步装配数据库、Provider、中间件和全部路由。
 
 ```python
 from fastapi import FastAPI
@@ -342,6 +351,9 @@ JWT_ISSUER=http://mock-idp:9001
 JWT_AUDIENCE=pipechina-backend
 JWT_ALGORITHM=RS256
 JWT_JWKS_URL=http://127.0.0.1:9001/.well-known/jwks.json
+AUTO_CREATE_SCHEMA=false
+AUTO_SEED=false
+RUN_TASKS_INLINE=false
 
 TEXT_PROVIDER=qwen
 DASHSCOPE_API_KEY=
@@ -364,6 +376,18 @@ LOCAL_STORAGE_SIGNING_SECRET=development-local-storage-secret-change-me
 CELERY_BROKER_URL=amqp://peter:123456@127.0.0.1:5672//
 CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/1
 REDIS_URL=redis://127.0.0.1:6379/0
+
+PROVIDER_TIMEOUT_SECONDS=60
+MEDIA_PROVIDER_TIMEOUT_SECONDS=900
+PROVIDER_MAX_RETRIES=2
+PROVIDER_TRUST_ENV=false
+JOB_HEARTBEAT_TIMEOUT_SECONDS=1800
+OUTBOX_MAX_ATTEMPTS=8
+OUTBOX_BASE_RETRY_SECONDS=5
+
+MAX_AUDIO_BYTES=524288000
+MAX_IMAGE_BYTES=20971520
+ALLOWED_IMAGE_TYPES=["image/jpeg","image/png","image/webp"]
 ```
 
 上面是本地开发示例值。实际运行时统一由 `.env` 提供配置；仓库中的 `.env.example` 是权威字段清单，新增配置时应同步更新该文件。
@@ -417,7 +441,7 @@ git log --oneline -1
 
 ## 1.12 本章验收清单
 
-- [ ] PyCharm 项目路径为 `pipeline_operations_ai_backend`；
+- [ ] PyCharm 项目路径为 `pipechina_backend`；
 - [ ] 项目使用 uv 和 Python 3.14；
 - [ ] 创建项目时已经勾选 Git；
 - [ ] `uv lock` 和 `uv sync --frozen --group dev` 执行成功；
