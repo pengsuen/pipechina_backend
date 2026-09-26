@@ -1,0 +1,65 @@
+name: pipechina
+
+services:
+  asr:
+    profiles: [local-models]
+    build:
+      context: ../../services/asr
+    environment:
+      ASR_MODEL: ${ASR_MODEL:-large-v3}
+      ASR_DEVICE: ${ASR_DEVICE:-cpu}
+      ASR_COMPUTE_TYPE: ${ASR_COMPUTE_TYPE:-int8}
+      ASR_MODEL_CACHE: /models
+    ports:
+      - "127.0.0.1:8101:8101"
+    volumes:
+      - asr_models:/models
+    networks: [shared-infra]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8101/health/live', timeout=2)"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  vision:
+    profiles: [local-models]
+    build:
+      context: ../../services/vision
+    environment:
+      VISION_MODEL: ${VISION_MODEL:-openbmb/MiniCPM-V-4.6}
+      HF_HOME: /models
+    ports:
+      - "127.0.0.1:8102:8102"
+    volumes:
+      - vision_models:/models
+    networks: [shared-infra]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8102/health/live', timeout=2)"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  object-storage-init:
+    profiles: [s3-local]
+    build:
+      context: ../..
+      dockerfile: infra/docker/backend.Dockerfile
+    env_file: [../../.env]
+    environment:
+      S3_ENDPOINT_URL: http://seaweedfs:8333
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-peter}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-123456}
+      S3_USE_SSL: "false"
+    command: python -m app.bootstrap.ensure_bucket
+    networks: [shared-infra]
+
+networks:
+  shared-infra:
+    external: true
+    name: shared-infra
+
+volumes:
+  asr_models:
+  vision_models:

@@ -1,0 +1,103 @@
+# Separate external services. Supply tested, pinned image tags/digests in .env.knowledge.
+name: pipechina-knowledge-infra
+services:
+  parser:
+    build:
+      context: ../..
+      dockerfile: services/knowledge_parser/Dockerfile
+    environment:
+      API_KEY: ${KNOWLEDGE_SERVICE_API_KEY:?Set KNOWLEDGE_SERVICE_API_KEY}
+    ports: ["127.0.0.1:8103:8000"]
+    volumes:
+      - parser_data:/data
+      - parser_models:/home/worker/.cache
+      - parser_ocr:/usr/local/lib/python3.13/site-packages/rapidocr/models
+    mem_limit: 6g
+    pids_limit: 256
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+  embedding:
+    build:
+      context: ../..
+      dockerfile: services/knowledge_models/Dockerfile
+    environment:
+      CAPABILITY: embedding
+      MODEL_NAME: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      MODEL_REVISION: ${EMBEDDING_REVISION:?Set pinned embedding model commit}
+      API_KEY: ${KNOWLEDGE_SERVICE_API_KEY:?Set KNOWLEDGE_SERVICE_API_KEY}
+    ports: ["127.0.0.1:8104:8000"]
+    volumes: ["embedding_models:/home/worker/.cache"]
+    mem_limit: 6g
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+  reranker:
+    build:
+      context: ../..
+      dockerfile: services/knowledge_models/Dockerfile
+    environment:
+      CAPABILITY: rerank
+      MODEL_NAME: ${RERANKER_MODEL:-BAAI/bge-reranker-v2-m3}
+      MODEL_REVISION: ${RERANKER_REVISION:?Set pinned reranker model commit}
+      API_KEY: ${KNOWLEDGE_SERVICE_API_KEY:?Set KNOWLEDGE_SERVICE_API_KEY}
+    ports: ["127.0.0.1:8105:8000"]
+    volumes: ["reranker_models:/home/worker/.cache"]
+    mem_limit: 6g
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+  elasticsearch:
+    image: ${ELASTICSEARCH_IMAGE:?Set a pinned Elasticsearch image}
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "false"
+      ELASTIC_PASSWORD: ${ES_PASSWORD:?Set ES_PASSWORD}
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    ports:
+      - "127.0.0.1:9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    mem_limit: 3g
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -u elastic:$$ELASTIC_PASSWORD http://localhost:9200/_cluster/health >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+    restart: unless-stopped
+  qdrant:
+    image: ${QDRANT_IMAGE:?Set a pinned Qdrant image}
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY}
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    mem_limit: 2g
+    restart: unless-stopped
+  neo4j:
+    image: ${NEO4J_IMAGE:?Set a pinned Neo4j image supporting Query API v2}
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD}
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1g
+      NEO4J_server_memory_pagecache_size: 512m
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    volumes:
+      - neo4j_data:/data
+    mem_limit: 3g
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+    restart: unless-stopped
+volumes:
+  parser_data:
+  parser_models:
+  parser_ocr:
+  embedding_models:
+  reranker_models:
+  es_data:
+  qdrant_data:
+  neo4j_data:

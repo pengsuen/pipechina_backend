@@ -1,0 +1,134 @@
+name: shared-infra
+
+services:
+  postgres:
+    image: postgres:18.6-alpine3.24
+    container_name: postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-peter}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-123456}
+      POSTGRES_DB: ${POSTGRES_DEFAULT_DB:-postgres}
+      POSTGRES_INITDB_ARGS: --data-checksums
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql
+    networks:
+      - shared-infra
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${POSTGRES_USER:-peter}
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  mysql:
+    image: mysql:9
+    container_name: mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-123456}
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - shared-infra
+    healthcheck:
+      test:
+        - CMD
+        - mysqladmin
+        - ping
+        - -h
+        - localhost
+        - -p${MYSQL_ROOT_PASSWORD:-123456}
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: "no"
+
+  rabbitmq:
+    image: rabbitmq:4.3.5-management-alpine
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_DEFAULT_USER:-peter}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_DEFAULT_PASS:-123456}
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - shared-infra
+    healthcheck:
+      test:
+        - CMD
+        - rabbitmq-diagnostics
+        - -q
+        - ping
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: "no"
+
+  redis:
+    image: redis:8.10.1-alpine3.23
+    container_name: redis
+    command: redis-server --appendonly yes
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - shared-infra
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: "no"
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.44
+    container_name: seaweedfs
+    command: server -dir=/data -s3 -s3.port=8333
+    environment:
+      AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY:-peter}
+      AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY:-123456}
+    ports:
+      - "127.0.0.1:8333:8333"
+    volumes:
+      - seaweed_data:/data
+    networks:
+      - shared-infra
+    healthcheck:
+      test:
+        - CMD
+        - wget
+        - -q
+        - --spider
+        - http://127.0.0.1:8333/readyz
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: "no"
+
+networks:
+  shared-infra:
+    name: shared-infra
+
+volumes:
+  pg_data:
+    name: pg_data
+  mysql_data:
+    name: mysql_data
+  rabbitmq_data:
+    name: rabbitmq_data
+  redis_data:
+    name: redis_data
+  seaweed_data:
+    name: seaweed_data
