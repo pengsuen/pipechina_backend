@@ -30,14 +30,14 @@
 | 会议资料治理 | `app/modules/meeting/` | 第9章介绍纪要、知识撤回同步和录音保留期 |
 | 报告导出 | `app/modules/report/application/service.py` | 第7章介绍固定版本的DOCX和PDF导出 |
 
-容器、卷和启动命令见[基础设施部署说明](../infra/README.md)，独立模型服务见[服务说明](../services/README.md)。
+容器边界见[基础设施部署说明](../infra/README.md)，本机网络、数据卷、启停和清理命令见[本机Docker操作](../infra/LOCAL_DOCKER.md)，模型服务源码见[服务说明](../services/README.md)。
 
 ## 系统边界
 
 ```text
 app/        模块化单体：API、业务规则、事务、Worker、RAG与Agent编排
-services/   项目自有HTTP服务：ASR、视觉、文档解析、Embedding和重排
-infra/      Docker Compose、后端Dockerfile和部署环境模板
+services/   项目自有HTTP服务：ASR、视觉和统一知识运行时
+infra/      Docker Compose、后端Dockerfile和本机Docker操作说明
 ```
 
 独立容器是运行边界，不改变代码归属。意图分段、检索融合和引用验证仍在主后端。Elasticsearch负责全文索引，Qdrant负责向量索引，Neo4j负责带来源的关系索引，PostgreSQL保存权限、版本、发布和任务事实。
