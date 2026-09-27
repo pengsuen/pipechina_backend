@@ -69,17 +69,17 @@ jobs:
       - name: Compile Python sources
         run: uv run python -m compileall -q app alembic tests scripts dev services
 
-      - name: Run unit and API tests with branch coverage
-        run: |
-          uv run coverage erase
-          uv run coverage run -m pytest -W error
-          uv run coverage report
-
       - name: Apply migrations to PostgreSQL 18
         run: uv run alembic upgrade head
 
       - name: Verify PostgreSQL schema and Alembic revision
         run: uv run python scripts/verify_postgres_schema.py
+
+      - name: Run unit and API tests with branch coverage
+        run: |
+          uv run coverage erase
+          uv run coverage run -m pytest -W error
+          uv run coverage report
 
       - name: Audit locked environment for known vulnerabilities
         run: uv run pip-audit --local --skip-editable

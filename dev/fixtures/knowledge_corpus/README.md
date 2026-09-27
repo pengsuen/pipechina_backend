@@ -15,7 +15,7 @@
 
 此目录保存可重复导入的原始文件，不作为运行时文件服务器目录。导入时使用 `scripts/import_knowledge_corpus.py` 经知识库 API 创建文档与版本、申请上传地址、上传文件并确认完成；添加 `--process` 才请求后续处理。存储位置由后端存储配置和上传授权决定，不在脚本中写死文件服务器地址。
 
-生成入口为 `scripts/build_rich_knowledge_corpus.py --output <空目录>`；内容定义在 `scripts/knowledge_corpus_content.py`，工作簿生成器为 `scripts/build_corpus_workbooks.mjs`，渲染校验入口为 `scripts/verify_rich_knowledge_corpus.py`。生成需要 ReportLab、Pillow、pypdf、python-docx、Poppler 和 Node artifact-tool；Word 渲染需要 LibreOffice 与可用的中文字体。本批 Word 使用 Noto Sans CJK SC，PDF 使用嵌入的宋体。
+语料文件及`manifest.json`已经随仓库固定保存，测试和联调直接使用这些文件。本批Word使用Noto Sans CJK SC，PDF使用嵌入的宋体。
 
 |文号|主题|格式与结构|版本|
 |---|---|---|---|
@@ -83,5 +83,3 @@
 扫描PDF的扫描页只有图像，没有隐藏文字层。混合PDF交替包含文字页与扫描页。
 
 批量导入使用 scripts/import_knowledge_corpus.py。manifest.json 只登记业务文件，目录及校验报告不上传。
-
-生成命令：使用包含 reportlab、python-docx、Pillow、pypdf 的运行环境执行 scripts/build_rich_knowledge_corpus.py --output 新目录。XLSX 使用 Codex bundled artifact-tool，扫描使用 pdftoppm。

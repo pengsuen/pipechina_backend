@@ -39,9 +39,7 @@ async def mock_http(adapter, handler):
 
 @pytest.mark.asyncio
 async def test_lazy_fake_resources_and_scope_isolation():
-    manager = KnowledgeResourceManager(
-        config(knowledge_backend="fake", embedding_dimensions=4)
-    )
+    manager = KnowledgeResourceManager(config(knowledge_backend="fake", embedding_dimensions=4))
     assert manager._resources is None
     resources = manager.get()
     version, hidden = uuid4(), uuid4()

@@ -1,4 +1,4 @@
-"""Import a generated corpus through the knowledge API and storage upload grant."""
+"""通过知识API和存储上传授权批量导入已生成的知识测试语料。"""
 
 from __future__ import annotations
 

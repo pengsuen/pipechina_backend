@@ -1,4 +1,7 @@
-"""Explicit index creation; never executed by API startup or Alembic."""
+"""显式创建指定代次的Elasticsearch、Qdrant和Neo4j知识索引结构。
+
+该脚本用于首次部署或建立新索引代次，不会由API启动过程或Alembic自动执行。
+"""
 
 import argparse
 import asyncio

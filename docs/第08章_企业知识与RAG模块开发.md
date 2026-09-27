@@ -163,7 +163,7 @@ Parser、Embedding、Rerank调用通过能力观测记录日志，未知使用�
 
 反馈类别包括helpful、wrong_citation、incomplete、outdated、incorrect。反馈只保存用于分析，不自动微调模型、修改ACL或覆盖已发布知识。
 
-生成资料/测试PDF的辅助脚本提供合成夹具，不是实际客户数据或真实企业效果报告。评测报告应说明语料来源、版本、模型快照、模式、标注方法及是否留出测试集。
+仓库`dev/fixtures/knowledge_corpus`保存合成测试语料，不是实际客户数据或真实企业效果报告。评测报告应说明语料来源、版本、模型快照、模式、标注方法及是否留出测试集。
 
 ## 8.14 API导航
 

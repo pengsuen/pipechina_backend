@@ -1,4 +1,6 @@
+import hashlib
 import json
+from pathlib import Path
 from unittest.mock import AsyncMock
 
 import pytest
@@ -77,16 +79,16 @@ def test_retrieval_metrics_are_rank_sensitive():
     assert 0 < metrics["ndcg"] < 1
 
 
-def test_corpus_is_deterministic_and_never_overwrites(tmp_path):
-    from scripts.generate_knowledge_corpus import generate
-
-    assert generate(tmp_path, 2) == (2, 4, 4)
-    manifest = json.loads((tmp_path / "manifest.json").read_text())
-    assert manifest["document_count"] == 2
-    assert manifest["version_count"] == 4
-    assert all(document["versions"] for document in manifest["documents"])
+def test_committed_corpus_matches_manifest():
+    root = Path(__file__).parents[1] / "dev/fixtures/knowledge_corpus"
+    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    versions = [version for document in manifest["documents"] for version in document["versions"]]
+    assert manifest["document_count"] == len(manifest["documents"]) == 60
+    assert manifest["version_count"] == len(versions) == 75
+    assert len({document["code"] for document in manifest["documents"]}) == 60
     assert any(q["should_refuse"] for q in manifest["questions"])
-    generated = [path for path in tmp_path.rglob("*") if path.is_file()]
-    assert not any("演示" in path.read_text(errors="ignore") for path in generated)
-    with pytest.raises(ValueError):
-        generate(tmp_path, 2)
+    for version in versions:
+        path = root / version["path"]
+        content = path.read_bytes()
+        assert len(content) == version["size_bytes"]
+        assert hashlib.sha256(content).hexdigest() == version["sha256"]
