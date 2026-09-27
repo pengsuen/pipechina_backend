@@ -79,6 +79,16 @@ class KnowledgeResources:
                         )
                         response = await resource.http.get(path)
                         response.raise_for_status()
+                        if isinstance(resource, HTTPDocumentParser):
+                            components = response.json().get("components", {})
+                            if not components.get("parser") or not components.get("ocr"):
+                                return False
+                        elif isinstance(resource, HTTPEmbedding):
+                            if not response.json().get("components", {}).get("embedding"):
+                                return False
+                        elif isinstance(resource, HTTPReranker):
+                            if not response.json().get("components", {}).get("reranker"):
+                                return False
                         if (
                             isinstance(resource, ElasticsearchIndex)
                             and response.json().get("status") == "red"

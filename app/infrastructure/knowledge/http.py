@@ -370,7 +370,7 @@ class ModelHTTP(KnowledgeHTTP):
 
 class HTTPEmbedding(ModelHTTP):
     def __init__(self, settings: Settings):
-        super().__init__(settings.embedding_url, settings)
+        super().__init__(settings.knowledge_runtime_url, settings)
         self.model, self.dimensions = settings.embedding_model, settings.embedding_dimensions
         self.revision = settings.embedding_revision
 
@@ -396,7 +396,7 @@ class HTTPEmbedding(ModelHTTP):
 
 class HTTPReranker(ModelHTTP):
     def __init__(self, settings: Settings):
-        super().__init__(settings.reranker_url, settings)
+        super().__init__(settings.knowledge_runtime_url, settings)
         self.model = settings.reranker_model
         self.revision = settings.reranker_revision
         self.max_candidates = 100
@@ -421,7 +421,7 @@ class HTTPReranker(ModelHTTP):
 
 class HTTPDocumentParser(ModelHTTP):
     def __init__(self, settings: Settings):
-        super().__init__(settings.parser_url, settings)
+        super().__init__(settings.knowledge_runtime_url, settings)
         self.max_bytes, self.max_pages = (
             settings.knowledge_max_document_bytes,
             settings.knowledge_max_document_pages,

@@ -16,8 +16,7 @@
 |---|---|---|
 | 业务 | [app/modules/knowledge](../app/modules/knowledge) | 权限、版本、意图分段、检索融合、引用、评测 |
 | 装配 | [app/bootstrap/knowledge.py](../app/bootstrap/knowledge.py) | 知识资源构造与生命周期 |
-| 文档解析服务 | [services/knowledge_parser](../services/knowledge_parser) | Docling解析、受控转换进程、结构化产物 |
-| 模型服务 | [services/knowledge_models](../services/knowledge_models) | Embedding与Rerank HTTP服务；独立运行实例 |
+| 知识运行时 | [services/knowledge_runtime](../services/knowledge_runtime) | 一个进程提供Docling解析、OCR、Embedding与Rerank接口 |
 | 部署 | [infra/compose/knowledge.yml](../infra/compose/knowledge.yml) | 解析、模型与三个索引服务的容器编排 |
 | 业务事实库 | PostgreSQL | ACL、发布状态、版本、证据、任务和运行记录 |
 | 全文索引 | Elasticsearch | 词法/全文召回，不保存项目的向量检索职责 |
@@ -217,7 +216,7 @@ Worker消费knowledge_index、knowledge_query、knowledge_eval；解析轮询属
 数据库测试会重建public schema，先配置可丢弃的独立TEST_DATABASE_URL，再按范围运行：
 
 ```bash
-uv run pytest tests/test_knowledge_foundation.py tests/test_knowledge_quality.py tests/test_knowledge_parser_service.py -q
+uv run pytest tests/test_knowledge_foundation.py tests/test_knowledge_quality.py tests/test_knowledge_runtime_service.py -q
 uv run pytest tests/test_knowledge_business.py tests/test_knowledge_runtime_db.py tests/test_consistency_db.py -q
 ```
 

@@ -49,8 +49,7 @@ app/
 services/
 ├── asr/                       # 独立 faster-whisper 服务
 ├── vision/                    # 独立 MiniCPM-V 服务
-├── knowledge_parser/          # 文档解析与 OCR
-└── knowledge_models/          # Embedding、重排服务
+└── knowledge_runtime/         # 文档解析、OCR、Embedding和重排
 
 infra/
 ├── compose/                   # shared.yml、project.yml、knowledge.yml

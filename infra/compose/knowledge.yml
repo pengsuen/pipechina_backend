@@ -1,47 +1,24 @@
-# Separate external services. Supply tested, pinned image tags/digests in .env.knowledge.
+# Knowledge runtime and storage services. Supply pinned versions in .env.knowledge.
 name: pipechina-knowledge-infra
 services:
-  parser:
+  knowledge-runtime:
     build:
       context: ../..
-      dockerfile: services/knowledge_parser/Dockerfile
+      dockerfile: services/knowledge_runtime/Dockerfile
     environment:
       API_KEY: ${KNOWLEDGE_SERVICE_API_KEY:?Set KNOWLEDGE_SERVICE_API_KEY}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      EMBEDDING_REVISION: ${EMBEDDING_REVISION:?Set pinned embedding model commit}
+      RERANKER_MODEL: ${RERANKER_MODEL:-BAAI/bge-reranker-v2-m3}
+      RERANKER_REVISION: ${RERANKER_REVISION:?Set pinned reranker model commit}
+      MODEL_DEVICE: ${KNOWLEDGE_MODEL_DEVICE:-cpu}
     ports: ["127.0.0.1:8103:8000"]
     volumes:
-      - parser_data:/data
-      - parser_models:/home/worker/.cache
-      - parser_ocr:/usr/local/lib/python3.13/site-packages/rapidocr/models
-    mem_limit: 6g
+      - knowledge_runtime_data:/data
+      - knowledge_runtime_models:/home/worker/.cache/huggingface
+      - knowledge_runtime_ocr:/usr/local/lib/python3.13/site-packages/rapidocr/models
+    mem_limit: 16g
     pids_limit: 256
-    security_opt: ["no-new-privileges:true"]
-    restart: unless-stopped
-  embedding:
-    build:
-      context: ../..
-      dockerfile: services/knowledge_models/Dockerfile
-    environment:
-      CAPABILITY: embedding
-      MODEL_NAME: ${EMBEDDING_MODEL:-BAAI/bge-m3}
-      MODEL_REVISION: ${EMBEDDING_REVISION:?Set pinned embedding model commit}
-      API_KEY: ${KNOWLEDGE_SERVICE_API_KEY:?Set KNOWLEDGE_SERVICE_API_KEY}
-    ports: ["127.0.0.1:8104:8000"]
-    volumes: ["embedding_models:/home/worker/.cache"]
-    mem_limit: 6g
-    security_opt: ["no-new-privileges:true"]
-    restart: unless-stopped
-  reranker:
-    build:
-      context: ../..
-      dockerfile: services/knowledge_models/Dockerfile
-    environment:
-      CAPABILITY: rerank
-      MODEL_NAME: ${RERANKER_MODEL:-BAAI/bge-reranker-v2-m3}
-      MODEL_REVISION: ${RERANKER_REVISION:?Set pinned reranker model commit}
-      API_KEY: ${KNOWLEDGE_SERVICE_API_KEY:?Set KNOWLEDGE_SERVICE_API_KEY}
-    ports: ["127.0.0.1:8105:8000"]
-    volumes: ["reranker_models:/home/worker/.cache"]
-    mem_limit: 6g
     security_opt: ["no-new-privileges:true"]
     restart: unless-stopped
   elasticsearch:
@@ -93,11 +70,9 @@ services:
       retries: 20
     restart: unless-stopped
 volumes:
-  parser_data:
-  parser_models:
-  parser_ocr:
-  embedding_models:
-  reranker_models:
+  knowledge_runtime_data:
+  knowledge_runtime_models:
+  knowledge_runtime_ocr:
   es_data:
   qdrant_data:
   neo4j_data:

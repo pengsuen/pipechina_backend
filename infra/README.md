@@ -15,7 +15,7 @@ infra/
 services/            项目自有服务源码及各自的 Dockerfile、requirements.txt
 ```
 
-`infra` 管部署，`services` 管项目实现。解析、向量化、重排也有项目维护的 HTTP 服务代码，
+`infra` 管部署，`services` 管项目实现。解析、OCR、向量化和重排由统一的知识运行时提供，
 所以和音视频服务一样放在 `services`；ES、PostgreSQL 等直接使用官方镜像。
 RAG 的六个容器继续按原来的独立 Compose 项目部署，没有合并进后端进程。
 
@@ -25,8 +25,7 @@ RAG 的六个容器继续按原来的独立 Compose 项目部署，没有合并�
 |---|---|---|
 | 版本/权限治理、意图分段、混合检索、引用验证、问答、评测 | 主后端 `app/modules/knowledge` | 属于业务流程，复用权限、事务、任务和模型端口 |
 | 多 Agent 调查、工具授权、人工审核 | 主后端事件及维检模块 | 需要业务状态与证据约束，不额外拆微服务 |
-| OCR、版面和表格解析 | `services/knowledge_parser`，独立容器 | Docling/OCR 原生依赖、耗时任务与内存隔离 |
-| Embedding、重排 | `services/knowledge_models`，两个独立容器 | 常驻模型避免反复加载，可独立分配 CPU/GPU |
+| 文档解析、OCR、Embedding和重排 | `services/knowledge_runtime`，一个容器 | 共享认证、模型缓存和运行环境，与主后端的Python 3.14环境隔离 |
 | 音频转写、视觉分析 | `services/asr`、`services/vision`，独立容器 | 模型依赖与主后端 Python 运行时隔离 |
 | ES、Qdrant、Neo4j、数据库、队列 | `infra/compose` 引用外部镜像 | 通用基础设施，不复制软件源码到业务模块 |
 
@@ -62,4 +61,3 @@ docker compose --env-file .env -f infra/compose/project.yml --profile s3-local r
 ```bash
 docker build -f infra/docker/backend.Dockerfile -t pipechina-backend:dev .
 ```
-

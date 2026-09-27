@@ -4,8 +4,7 @@
 
 - `asr/`：faster-whisper 音频转写。
 - `vision/`：MiniCPM-V 视觉分析。
-- `knowledge_parser/`：Docling 文档解析、版面与 OCR。
-- `knowledge_models/`：Embedding、重排（以两个独立容器运行）。
+- `knowledge_runtime/`：Docling文档解析、OCR、Embedding和重排，作为一个运行时容器。
 
 这里保留服务源码、独立依赖和 Dockerfile；所有 Compose 编排集中在 `infra/compose/`。
 PostgreSQL、ES 等通用软件没有项目源码，不放在这里。

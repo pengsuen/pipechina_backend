@@ -58,6 +58,16 @@ def test_compose_build_paths_and_persistent_project_names_survive_move() -> None
         assert not (ROOT / filename).exists()
 
 
+def test_knowledge_compute_uses_one_runtime_service() -> None:
+    compose = yaml.safe_load((ROOT / "infra/compose/knowledge.yml").read_text(encoding="utf-8"))
+    services = compose["services"]
+    assert "knowledge-runtime" in services
+    assert {"parser", "embedding", "reranker"}.isdisjoint(services)
+    runtime = services["knowledge-runtime"]
+    assert runtime["build"]["dockerfile"] == "services/knowledge_runtime/Dockerfile"
+    assert runtime["ports"] == ["127.0.0.1:8103:8000"]
+
+
 def test_ci_uses_python_314_and_live_postgres_18_schema_gate() -> None:
     workflow = yaml.safe_load(
         (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")

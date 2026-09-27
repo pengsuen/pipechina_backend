@@ -47,9 +47,7 @@ class Settings(BaseSettings):
     neo4j_username: str = "neo4j"
     neo4j_password: SecretStr | None = None
     neo4j_database: str = Field(default="neo4j", pattern=r"^[a-zA-Z0-9_-]+$")
-    parser_url: str = "http://127.0.0.1:8103"
-    embedding_url: str = "http://127.0.0.1:8104"
-    reranker_url: str = "http://127.0.0.1:8105"
+    knowledge_runtime_url: str = "http://127.0.0.1:8103"
     knowledge_service_api_key: SecretStr | None = None
     embedding_model: str = "configured-embedding-model"
     embedding_revision: str = ""
@@ -76,9 +74,7 @@ class Settings(BaseSettings):
             self.es_url,
             self.qdrant_url,
             self.neo4j_url,
-            self.parser_url,
-            self.embedding_url,
-            self.reranker_url,
+            self.knowledge_runtime_url,
         ):
             parsed = urlsplit(url)
             if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username:

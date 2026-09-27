@@ -1,4 +1,4 @@
-"""Durable single-worker parser queue. No caller-supplied URLs or filesystem paths."""
+"""Unified parser, OCR, embedding and reranking runtime."""
 
 import asyncio
 import hashlib
@@ -12,6 +12,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadFile
+from pydantic import BaseModel, Field
 
 from app.shared.media.documents import validate_document
 
@@ -19,6 +20,14 @@ ROOT = Path(os.environ.get("PARSER_DATA", "/data"))
 API_KEY = os.environ["API_KEY"]
 if not API_KEY:
     raise RuntimeError("API_KEY is required")
+LOAD_MODELS = os.environ.get("KNOWLEDGE_RUNTIME_LOAD_MODELS", "true").lower() == "true"
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "BAAI/bge-m3")
+EMBEDDING_REVISION = os.environ.get("EMBEDDING_REVISION", "")
+RERANKER_MODEL = os.environ.get("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
+RERANKER_REVISION = os.environ.get("RERANKER_REVISION", "")
+MODEL_DEVICE = os.environ.get("MODEL_DEVICE", "cpu")
+if LOAD_MODELS and (not EMBEDDING_REVISION or not RERANKER_REVISION):
+    raise RuntimeError("pinned embedding and reranker revisions are required")
 SUFFIXES = {
     "application/pdf": ".pdf",
     "text/plain": ".txt",
@@ -110,6 +119,29 @@ async def lifespan(app):
         db.execute("UPDATE jobs SET status='queued' WHERE status='running'")
     task = asyncio.create_task(worker())
     app.state.worker = task
+    app.state.embedding_model = None
+    app.state.reranker_model = None
+    app.state.embedding_lock = asyncio.Lock()
+    app.state.reranker_lock = asyncio.Lock()
+    if LOAD_MODELS:
+        from sentence_transformers import CrossEncoder, SentenceTransformer
+
+        app.state.embedding_model, app.state.reranker_model = await asyncio.gather(
+            asyncio.to_thread(
+                SentenceTransformer,
+                EMBEDDING_MODEL,
+                revision=EMBEDDING_REVISION,
+                device=MODEL_DEVICE,
+                trust_remote_code=False,
+            ),
+            asyncio.to_thread(
+                CrossEncoder,
+                RERANKER_MODEL,
+                revision=RERANKER_REVISION,
+                device=MODEL_DEVICE,
+                trust_remote_code=False,
+            ),
+        )
     yield
     task.cancel()
     await asyncio.gather(task, return_exceptions=True)
@@ -127,7 +159,79 @@ app = FastAPI(lifespan=lifespan, dependencies=[Depends(authenticate)])
 async def health():
     if app.state.worker.done():
         raise HTTPException(503, "worker unavailable")
-    return {"status": "ready"}
+    components = {
+        "parser": True,
+        "ocr": True,
+        "embedding": app.state.embedding_model is not None,
+        "reranker": app.state.reranker_model is not None,
+    }
+    return {
+        "status": "ready" if all(components.values()) else "degraded",
+        "components": components,
+        "models": {
+            "embedding": {"name": EMBEDDING_MODEL, "revision": EMBEDDING_REVISION},
+            "reranker": {"name": RERANKER_MODEL, "revision": RERANKER_REVISION},
+        },
+    }
+
+
+class EmbeddingRequest(BaseModel):
+    model: str
+    input: list[str] = Field(min_length=1, max_length=64)
+
+
+class RerankRequest(BaseModel):
+    model: str
+    query: str = Field(min_length=1, max_length=4000)
+    documents: list[str] = Field(min_length=1, max_length=100)
+
+
+def validate_model_request(model: str, expected: str, texts: list[str]) -> None:
+    if model != expected:
+        raise HTTPException(400, "model mismatch")
+    if any(not text or len(text) > 16000 for text in texts):
+        raise HTTPException(413, "input text size invalid")
+
+
+@app.post("/v1/embeddings")
+async def embeddings(payload: EmbeddingRequest):
+    validate_model_request(payload.model, EMBEDDING_MODEL, payload.input)
+    if app.state.embedding_model is None:
+        raise HTTPException(503, "embedding model unavailable")
+    async with app.state.embedding_lock:
+        values = await asyncio.to_thread(
+            app.state.embedding_model.encode,
+            payload.input,
+            normalize_embeddings=True,
+            batch_size=16,
+            show_progress_bar=False,
+        )
+    return {
+        "model": EMBEDDING_MODEL,
+        "revision": EMBEDDING_REVISION,
+        "data": [{"index": i, "embedding": vector.tolist()} for i, vector in enumerate(values)],
+    }
+
+
+@app.post("/v1/rerank")
+async def rerank(payload: RerankRequest):
+    validate_model_request(payload.model, RERANKER_MODEL, payload.documents)
+    if app.state.reranker_model is None:
+        raise HTTPException(503, "reranker model unavailable")
+    async with app.state.reranker_lock:
+        values = await asyncio.to_thread(
+            app.state.reranker_model.predict,
+            [(payload.query, text) for text in payload.documents],
+            batch_size=8,
+            show_progress_bar=False,
+        )
+    return {
+        "model": RERANKER_MODEL,
+        "revision": RERANKER_REVISION,
+        "results": [
+            {"index": i, "relevance_score": float(value)} for i, value in enumerate(values)
+        ],
+    }
 
 
 @app.post("/v1/parse-jobs", status_code=202)

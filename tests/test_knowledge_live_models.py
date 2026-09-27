@@ -14,8 +14,7 @@ from app.shared.errors import AppError
 @pytest.mark.skipif(os.getenv("RAG_MODELS_TEST") != "1", reason="live local models opt-in")
 async def test_actual_embedding_and_reranker():
     settings = Settings(
-        embedding_url="http://127.0.0.1:18104",
-        reranker_url="http://127.0.0.1:18105",
+        knowledge_runtime_url="http://127.0.0.1:18103",
         knowledge_service_api_key="isolated-rag-test-key",
         embedding_model="BAAI/bge-m3",
         embedding_dimensions=1024,
