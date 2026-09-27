@@ -1,6 +1,29 @@
 name: pipechina
 
 services:
+  knowledge-runtime:
+    build:
+      context: ../..
+      dockerfile: services/knowledge_runtime/Dockerfile
+    environment:
+      API_KEY: ${KNOWLEDGE_SERVICE_API_KEY:?Set KNOWLEDGE_SERVICE_API_KEY}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-BAAI/bge-m3}
+      EMBEDDING_REVISION: ${EMBEDDING_REVISION:?Set pinned embedding model commit}
+      RERANKER_MODEL: ${RERANKER_MODEL:-BAAI/bge-reranker-v2-m3}
+      RERANKER_REVISION: ${RERANKER_REVISION:?Set pinned reranker model commit}
+      MODEL_DEVICE: ${KNOWLEDGE_MODEL_DEVICE:-cpu}
+    ports:
+      - "127.0.0.1:8103:8000"
+    volumes:
+      - knowledge_runtime_data:/data
+      - knowledge_runtime_models:/home/worker/.cache/huggingface
+      - knowledge_runtime_ocr:/usr/local/lib/python3.13/site-packages/rapidocr/models
+    networks: [shared-infra]
+    mem_limit: 16g
+    pids_limit: 256
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
   asr:
     profiles: [local-models]
     build:
@@ -61,5 +84,13 @@ networks:
     name: shared-infra
 
 volumes:
+  knowledge_runtime_data:
+    name: pipechina_knowledge_runtime_data
+  knowledge_runtime_models:
+    name: pipechina_knowledge_runtime_models
+  knowledge_runtime_ocr:
+    name: pipechina_knowledge_runtime_ocr
   asr_models:
+    name: pipechina_asr_models
   vision_models:
+    name: pipechina_vision_models

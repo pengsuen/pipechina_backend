@@ -12,7 +12,7 @@ PostgreSQL、ES 等通用软件没有项目源码，不放在这里。
 Docker Compose 中两项服务属于 `local-models` profile：
 
 ```bash
-docker compose --env-file .env -f infra/compose/project.yml --profile local-models up --build asr vision
+docker compose --env-file .env -f infra/compose/project.yml --profile local-models up --build
 ```
 
 首次启动需要从模型仓库下载权重。生产环境应预下载并固定模型快照，同时通过内网访问控制保护 8101/8102 端口。

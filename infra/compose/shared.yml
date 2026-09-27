@@ -117,8 +117,69 @@ services:
       retries: 30
     restart: "no"
 
+  elasticsearch:
+    image: ${ELASTICSEARCH_IMAGE:-docker.elastic.co/elasticsearch/elasticsearch:8.19.8}
+    container_name: elasticsearch
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "true"
+      xpack.security.http.ssl.enabled: "false"
+      ELASTIC_PASSWORD: ${ES_PASSWORD:?Set ES_PASSWORD}
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+    ports:
+      - "127.0.0.1:9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+    networks:
+      - shared-infra
+    mem_limit: 3g
+    healthcheck:
+      test: [CMD-SHELL, "curl -fsS -u elastic:$$ELASTIC_PASSWORD http://localhost:9200/_cluster/health >/dev/null"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+    restart: unless-stopped
+
+  qdrant:
+    image: ${QDRANT_IMAGE:-qdrant/qdrant:v1.15.5}
+    container_name: qdrant
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?Set QDRANT_API_KEY}
+    ports:
+      - "127.0.0.1:6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - shared-infra
+    mem_limit: 2g
+    restart: unless-stopped
+
+  neo4j:
+    image: ${NEO4J_IMAGE:-neo4j:5.26.12}
+    container_name: neo4j
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:?Set NEO4J_PASSWORD}
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 1g
+      NEO4J_server_memory_pagecache_size: 512m
+    ports:
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
+    volumes:
+      - neo4j_data:/data
+    networks:
+      - shared-infra
+    mem_limit: 3g
+    healthcheck:
+      test: [CMD-SHELL, "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+    restart: unless-stopped
+
 networks:
   shared-infra:
+    external: true
     name: shared-infra
 
 volumes:
@@ -132,3 +193,9 @@ volumes:
     name: redis_data
   seaweed_data:
     name: seaweed_data
+  es_data:
+    name: es_data
+  qdrant_data:
+    name: qdrant_data
+  neo4j_data:
+    name: neo4j_data

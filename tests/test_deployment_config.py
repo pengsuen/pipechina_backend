@@ -7,10 +7,11 @@ from app.bootstrap.config import Settings
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_compose_only_manages_optional_container_services() -> None:
+def test_project_compose_manages_project_model_services() -> None:
     compose = yaml.safe_load((ROOT / "infra/compose/project.yml").read_text(encoding="utf-8"))
     services = compose["services"]
-    assert set(services) == {"asr", "vision", "object-storage-init"}
+    assert set(services) == {"knowledge-runtime", "asr", "vision", "object-storage-init"}
+    assert "profiles" not in services["knowledge-runtime"]
     assert services["asr"]["profiles"] == ["local-models"]
     assert services["vision"]["profiles"] == ["local-models"]
     assert services["object-storage-init"]["profiles"] == ["s3-local"]
@@ -39,7 +40,6 @@ def test_compose_build_paths_and_persistent_project_names_survive_move() -> None
     for filename, name in (
         ("shared.yml", "shared-infra"),
         ("project.yml", "pipechina"),
-        ("knowledge.yml", "pipechina-knowledge-infra"),
     ):
         path = ROOT / "infra/compose" / filename
         compose = yaml.safe_load(path.read_text())
@@ -54,18 +54,19 @@ def test_compose_build_paths_and_persistent_project_names_survive_move() -> None
         "docker-compose.yml",
         "shared-infra.compose.yml",
         "knowledge-infra.compose.yml",
+        "infra/compose/knowledge.yml",
     ):
         assert not (ROOT / filename).exists()
 
 
 def test_knowledge_compute_uses_one_runtime_service() -> None:
-    compose = yaml.safe_load((ROOT / "infra/compose/knowledge.yml").read_text(encoding="utf-8"))
-    services = compose["services"]
-    assert "knowledge-runtime" in services
-    assert {"parser", "embedding", "reranker"}.isdisjoint(services)
-    runtime = services["knowledge-runtime"]
+    project = yaml.safe_load((ROOT / "infra/compose/project.yml").read_text(encoding="utf-8"))
+    shared = yaml.safe_load((ROOT / "infra/compose/shared.yml").read_text(encoding="utf-8"))
+    runtime = project["services"]["knowledge-runtime"]
     assert runtime["build"]["dockerfile"] == "services/knowledge_runtime/Dockerfile"
     assert runtime["ports"] == ["127.0.0.1:8103:8000"]
+    assert {"elasticsearch", "qdrant", "neo4j"} <= shared["services"].keys()
+    assert {"elasticsearch", "qdrant", "neo4j"}.isdisjoint(project["services"])
 
 
 def test_ci_uses_python_314_and_live_postgres_18_schema_gate() -> None:

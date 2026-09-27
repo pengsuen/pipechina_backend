@@ -52,7 +52,7 @@ infra/      Docker Compose、后端Dockerfile和部署环境模板
 - 通用中间件不重放敏感响应。已经完成的重复写请求返回`409 REQUEST_ALREADY_COMPLETED`。知识接口依靠资源状态约束重复操作。
 - RAG和事件分类接入执行租约，其他任务继续遵守各自的状态、版本和行锁规则。
 - 数据库测试夹具会删除目标数据库的`public` Schema。`TEST_DATABASE_URL`必须指向可以丢弃的独立测试数据库。
-- `.env`、`.env.knowledge`、真实JWT和API Key不能写入文档或Git。
+- `.env`、真实JWT和API Key不能写入文档或Git。
 
 ## 已知限制与验证口径
 

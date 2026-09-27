@@ -17,7 +17,7 @@
 | 业务 | [app/modules/knowledge](../app/modules/knowledge) | 权限、版本、意图分段、检索融合、引用、评测 |
 | 装配 | [app/bootstrap/knowledge.py](../app/bootstrap/knowledge.py) | 知识资源构造与生命周期 |
 | 知识运行时 | [services/knowledge_runtime](../services/knowledge_runtime) | 一个进程提供Docling解析、OCR、Embedding与Rerank接口 |
-| 部署 | [infra/compose/knowledge.yml](../infra/compose/knowledge.yml) | 解析、模型与三个索引服务的容器编排 |
+| 部署 | [infra/compose](../infra/compose) | `project.yml`编排知识运行时，`shared.yml`编排三个索引服务 |
 | 业务事实库 | PostgreSQL | ACL、发布状态、版本、证据、任务和运行记录 |
 | 全文索引 | Elasticsearch | 词法/全文召回，不保存项目的向量检索职责 |
 | 向量索引 | Qdrant | 稠密向量召回，按模型代次隔离 |
@@ -200,7 +200,7 @@ Parser、Embedding、Rerank调用通过能力观测记录日志，未知使用�
 
 ## 8.15 启动与验收
 
-完整部署命令与凭据要求统一见 [infra/README.md](../infra/README.md)。从infra/env/knowledge.env.example创建本地 .env.knowledge，填写服务凭据；不要提交真实密钥。Compose的 --env-file只负责该命令环境插值，不会自动给独立启动的后端Python进程加载配置。
+完整部署命令与凭据要求统一见[infra/README.md](../infra/README.md)。本地`.env`同时为宿主机后端和两套Compose提供连接配置、服务凭据与固定模型版本，不要提交真实密钥。
 
 Worker消费knowledge_index、knowledge_query、knowledge_eval；解析轮询属于入库任务，不需要虚构独立knowledge_parse执行器。保留maintenance队列和Beat/Outbox发布。容器里的localhost与宿主机不同，后端容器部署必须配置实际可达地址。
 

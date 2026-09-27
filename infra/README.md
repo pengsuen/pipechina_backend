@@ -1,23 +1,21 @@
 # 容器与基础设施
 
 所有命令从**仓库根目录**执行，显式传入环境文件，避免移动 Compose 后读取错配置。
+本机首次创建、日常启停和数据卷清理命令见[本机Docker操作](LOCAL_DOCKER.md)。
 
 ```text
 infra/
   compose/
-    shared.yml       PostgreSQL、MySQL、RabbitMQ、Redis、SeaweedFS
-    knowledge.yml    ES、Qdrant、Neo4j，以及 RAG 独立服务的部署编排
-    project.yml      可选 ASR、视觉服务、对象存储初始化任务
+    shared.yml       PostgreSQL、MySQL、RabbitMQ、Redis、SeaweedFS、ES、Qdrant、Neo4j
+    project.yml      知识运行时、可选 ASR、视觉服务、对象存储初始化任务
   docker/
     backend.Dockerfile
-  env/
-    knowledge.env.example
 services/            项目自有服务源码及各自的 Dockerfile、requirements.txt
 ```
 
 `infra` 管部署，`services` 管项目实现。解析、OCR、向量化和重排由统一的知识运行时提供，
 所以和音视频服务一样放在 `services`；ES、PostgreSQL 等直接使用官方镜像。
-RAG 的六个容器继续按原来的独立 Compose 项目部署，没有合并进后端进程。
+共享基础设施拥有固定名称和数据卷，可以供本机其他项目复用。项目Compose只管理本项目实现的模型服务。
 
 ## 运行边界
 
@@ -38,15 +36,14 @@ RAG 的六个容器继续按原来的独立 Compose 项目部署，没有合并�
 
 ```bash
 docker compose --env-file .env -f infra/compose/shared.yml up -d postgres rabbitmq redis
-docker compose --env-file .env -f infra/compose/project.yml --profile local-models up -d --build asr vision
+docker compose --env-file .env -f infra/compose/shared.yml up -d elasticsearch qdrant neo4j
+docker compose --env-file .env -f infra/compose/project.yml up -d --build knowledge-runtime
 ```
 
-RAG：将 `infra/env/knowledge.env.example` 复制到根目录 `.env.knowledge`，填写密码、API Key
-和固定模型版本。该文件被 Git 忽略。后端还需在自己的环境中配置同样的连接参数。
+使用本地语音和视觉模型时，在同一项目Compose中启用`local-models`：
 
 ```bash
-docker compose --env-file .env.knowledge -f infra/compose/knowledge.yml config --quiet
-docker compose --env-file .env.knowledge -f infra/compose/knowledge.yml up -d --build
+docker compose --env-file .env -f infra/compose/project.yml --profile local-models up -d --build
 ```
 
 可选对象存储初始化（需已启动 SeaweedFS）：

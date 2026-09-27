@@ -52,7 +52,7 @@ services/
 └── knowledge_runtime/         # 文档解析、OCR、Embedding和重排
 
 infra/
-├── compose/                   # shared.yml、project.yml、knowledge.yml
+├── compose/                   # shared.yml、project.yml
 ├── docker/                    # 后端镜像构建文件
 └── env/                       # 独立基础设施环境示例
 
@@ -93,10 +93,11 @@ DASHSCOPE_API_KEY=你的百炼API密钥
 
 ### 3.2 启动基础设施
 
-本地开发使用 `infra/compose/shared.yml` 管理的共享 PostgreSQL、RabbitMQ、Redis 和 SeaweedFS：
+本地开发使用`infra/compose/shared.yml`管理数据库、中间件和检索引擎：
 
 ```bash
 docker compose --env-file .env -f infra/compose/shared.yml up -d postgres rabbitmq redis
+docker compose --env-file .env -f infra/compose/shared.yml up -d elasticsearch qdrant neo4j
 docker compose --env-file .env -f infra/compose/shared.yml ps
 ```
 
@@ -137,13 +138,14 @@ Celery Beat 运行配置：
 uv run celery -A app.bootstrap.celery_app:celery_app beat -l INFO
 ```
 
-### 3.4 启动本地语音和视觉模型
+### 3.4 启动项目模型服务
 
 ```bash
-docker compose --env-file .env -f infra/compose/project.yml --profile local-models up -d --build asr vision
+docker compose --env-file .env -f infra/compose/project.yml up -d --build knowledge-runtime
+docker compose --env-file .env -f infra/compose/project.yml --profile local-models up -d --build
 ```
 
-首次启动会下载 `large-v3` 和 MiniCPM-V 4.6 权重。因此，“只填千问 Key”足以启动文字能力，但要实际处理音频和图片，还必须启动这两个本地推理服务并具备相应磁盘、内存或 GPU 资源。
+Knowledge Runtime是固定项目服务。启用`local-models`后还会启动ASR和Vision；首次启动会下载对应模型权重，需要相应的磁盘、内存或GPU资源。
 
 接口文档：`http://localhost:8000/docs`。
 
